@@ -79,6 +79,7 @@ with tab1:
         
         h = st.slider("Honesty-Humility", 0, 100, 20)
         st.caption("Measures sincerity, fairness, and modesty. High scorers are genuine; low scorers tend to be manipulative.")
+        # Adds spacing
         
         e = st.slider("Emotionality", 0, 100, 80)
         st.caption("Focuses on anxiety and vulnerability. High scorers feel deeper anxiety; low scorers are highly independent.")
