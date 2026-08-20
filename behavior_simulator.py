@@ -55,7 +55,7 @@ with st.sidebar:
     # gemini-2.5-flash or gemini-2.0-flash is the current generation. 
     # Update this string if you have early access to a specific model naming convention.
     model_id = st.text_input("Gemini Model ID", value="gemini-3.6-flash") 
-    api_key = st.text_input("Enter Gemini API Key", value="AQ.Ab8RN6JZy5PndV28aPnegBHmGM5j31vl8XOyRQ_Popbu-7ybHw", type="password")
+    api_key = st.secrets["GEMINI_API_KEY"]
 
 if not api_key:
     st.warning("Please enter your Gemini API Key in the sidebar.")
