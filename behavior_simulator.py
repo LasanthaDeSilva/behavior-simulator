@@ -110,7 +110,9 @@ with tab1:
         st.caption("How the nervous system filters noise. Low = easily overwhelmed; High = needs intense stimulation.")
         st.markdown("<br>", unsafe_allow_html=True)
 
-        sensory_domain = st.selectbox("Primary Sensory Domain", [
+        sensory_domains = st.multiselect(
+        "Primary Sensory Domains Affected", 
+        [
             "General / All Senses", 
             "Auditory (Sound)", 
             "Visual (Sight)", 
@@ -120,6 +122,28 @@ with tab1:
             "Vestibular (Balance/Movement)"
         ])
         st.caption("The specific sensory system most intensely affected or triggered in this scenario.")
+        st.markdown("<br>", unsafe_allow_html=True)
+
+        masking = st.selectbox(
+           "Behavioral Masking", 
+           ["None (Unmasked / Natural expression)", "Moderate (Suppressing visible traits for social norms)", "High (Heavy camouflage, high exhaustion risk)"]
+        )
+        st.caption("The degree to which the subject is actively hiding their natural reactions, neurodivergent traits, or stress to conform.")
+        st.markdown("<br>", unsafe_allow_html=True)
+
+        stimming = st.multiselect(
+           "Stimming / Self-Regulation Behaviors", 
+           [
+               "None",
+               "Fidgeting / Hand movements", 
+               "Pacing / Repetitive motion", 
+               "Auditory stimming (Humming, repeating words)", 
+               "Tactile stimming (Rubbing objects, textures)", 
+               "Verbal masking / Scripting"
+           ],
+           default=["None"]
+        )
+        st.caption("Physical or vocal mechanisms used to manage anxiety, sensory overload, or emotional regulation.")
         st.markdown("<br>", unsafe_allow_html=True)
         
         dopamine = st.selectbox("Dopaminergic System", ["Low (Cautious/Apathetic)", "Medium (Balanced)", "High (Thrill-seeking/Impulsive)"], index=2)
@@ -145,14 +169,21 @@ with tab1:
         
         prompt = f"""
         You are an elite computational psychologist. 
-        Analyze this subject. Apply the "Modifier Rule": The subject's Temperament, State, and Cognitive Load actively OVERRIDE or modulate their baseline HEXACO traits. (e.g., A highly conscientious person in a panicked state with a low sensory threshold in a loud room will experience a catastrophic drop in conscientiousness).
+        Analyze this subject and predict their behavioral response. 
+        
+        APPLY THE MODIFIER MULTIPLIER RULE: 
+        The subject's Temperament, State, Sensory Domains, Masking levels, and Stimming behaviors must actively drive the outcome. Especially their specific Sensory Domains must actively amplify or trigger the outcome based on their Sensory Threshold ({sensory}). If specific sensory domains are selected below, they are the exact vectors causing overstimulation or craving—incorporate them directly into the physical and psychological reaction. High Masking should rapidly drain Cognitive Load and increase internal stress, while Stimming acts as a regulatory valve. Incorporate these mechanisms directly into the predicted actions.
         
         BASELINE HEXACO: {hexaco_data}
+        
         MODIFIERS: 
         - Sensory: {sensory}
+        - Affected Sensory Domains: {sensory_domains}
         - Dopamine: {dopamine}
         - State: {state_trait}
         - Cognitive Load: {cognitive_load}
+        - Behavioral Masking: {masking}
+        - Stimming Behaviors: {stimming}
         - Background: {extra_details}
         
         SITUATION: {situation}
