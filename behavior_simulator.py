@@ -124,7 +124,9 @@ with tab1:
         
         st.markdown("**Context**")
         extra_details = st.text_input("Extra Details", "Late for an important job interview.")
+        st.markdown("<br>", unsafe_allow_html=True)
         situation = st.text_area("The Situation", "Finds a wallet with $500 cash in a loud, crowded subway station.")
+        st.markdown("<br>", unsafe_allow_html=True)
 
     if st.button("🚀 Predict Action", type="primary"):
         hexaco_data = f"H:{h}, E:{e}, X:{x}, A:{a}, C:{c}, O:{o}"
