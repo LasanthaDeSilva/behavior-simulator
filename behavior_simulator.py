@@ -280,3 +280,18 @@ with tab2:
 
             except Exception as e:
                 st.error(f"Error during reverse engineering: {str(e)}")
+
+
+# --- PERMANENT FOOTER ---
+st.markdown("<br><br>", unsafe_allow_html=True)
+st.divider()
+st.markdown(
+    """
+    <div style='text-align: center; color: gray; font-size: 0.85em;'>
+        <p><b>Behavioral & Psychological Simulator</b> | Built with Streamlit & Google Gemini</p>
+        <p>⚠️ <em>Disclaimer: This application is for educational, creative, and exploratory simulation purposes only. It does not provide medical diagnoses, psychological evaluations, or professional clinical advice.</em></p>
+    </div>
+    """,
+    unsafe_allow_html=True
+)
+
