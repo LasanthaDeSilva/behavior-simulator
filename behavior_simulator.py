@@ -109,6 +109,18 @@ with tab1:
         sensory = st.selectbox("Sensory Threshold", ["Low (Easily overwhelmed)", "Medium (Balanced)", "High (Requires intense input)"])
         st.caption("How the nervous system filters noise. Low = easily overwhelmed; High = needs intense stimulation.")
         st.markdown("<br>", unsafe_allow_html=True)
+
+        sensory_domain = st.selectbox("Primary Sensory Domain", [
+            "General / All Senses", 
+            "Auditory (Sound)", 
+            "Visual (Sight)", 
+            "Tactile (Touch)", 
+            "Olfactory (Smell)", 
+            "Gustatory (Taste)", 
+            "Vestibular (Balance/Movement)"
+        ])
+        st.caption("The specific sensory system most intensely affected or triggered in this scenario.")
+        st.markdown("<br>", unsafe_allow_html=True)
         
         dopamine = st.selectbox("Dopaminergic System", ["Low (Cautious/Apathetic)", "Medium (Balanced)", "High (Thrill-seeking/Impulsive)"], index=2)
         st.caption("The brain's reward center. High = takes risks for thrills; Low = prefers stability and security.")
