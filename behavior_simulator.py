@@ -76,19 +76,39 @@ with tab1:
     
     with col1:
         st.markdown("**HEXACO Traits (0-100 Baseline)**")
+        
         h = st.slider("Honesty-Humility", 0, 100, 20)
+        st.caption("Measures sincerity, fairness, and modesty. High scorers are genuine; low scorers tend to be manipulative.")
+        
         e = st.slider("Emotionality", 0, 100, 80)
+        st.caption("Focuses on anxiety and vulnerability. High scorers feel deeper anxiety; low scorers are highly independent.")
+        
         x = st.slider("Extraversion", 0, 100, 50)
+        st.caption("Covers social boldness. High scorers thrive in crowds; low scorers prefer solitary, quiet settings.")
+        
         a = st.slider("Agreeableness", 0, 100, 40)
+        st.caption("Involves forgiveness and patience. High scorers compromise easily; low scorers anger quickly.")
+        
         c = st.slider("Conscientiousness", 0, 100, 90)
+        st.caption("Reflects organization and diligence. High scorers are disciplined; low scorers are impulsive.")
+        
         o = st.slider("Openness to Experience", 0, 100, 15)
+        st.caption("Represents curiosity. High scorers are naturally drawn to novel ideas. Low scorers strongly prefer the familiar, practical solutions, and traditional ways of thinking.")
 
     with col2:
         st.markdown("**Temperament & State (The Modifiers)**")
+        
         sensory = st.selectbox("Sensory Threshold", ["Low (Easily overwhelmed)", "Medium (Balanced)", "High (Requires intense input)"])
+        st.caption("How the nervous system filters noise. Low = easily overwhelmed; High = needs intense stimulation.")
+        
         dopamine = st.selectbox("Dopaminergic System", ["Low (Cautious/Apathetic)", "Medium (Balanced)", "High (Thrill-seeking/Impulsive)"], index=2)
+        st.caption("The brain's reward center. High = takes risks for thrills; Low = prefers stability and security.")
+        
         state_trait = st.selectbox("Current State", ["High stress/Panic state", "Relaxed/Calm state", "Fatigued/Burnout", "Baseline"])
+        st.caption("The immediate physical/emotional baseline. Acts as a powerful multiplier to baseline traits.")
+        
         cognitive_load = st.selectbox("Cognitive Load", ["Low (Clear headed)", "Medium (Busy)", "High (Distracted/Overwhelmed)"])
+        st.caption("Mental bandwidth in use. High load causes people to lose logic and default to raw instinct.")
         
         st.markdown("**Context**")
         extra_details = st.text_input("Extra Details", "Late for an important job interview.")
