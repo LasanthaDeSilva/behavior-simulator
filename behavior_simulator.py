@@ -48,6 +48,12 @@ class ReverseEngineeringResult(BaseModel):
 st.set_page_config(page_title="Behavior Simulator", layout="wide")
 st.title("🧠 Advanced Human Behavior Simulator")
 
+# Initialize session state variables if they don't exist yet
+if "forward_result" not in st.session_state:
+    st.session_state.forward_result = None
+if "reverse_result" not in st.session_state:
+    st.session_state.reverse_result = None
+
 # Sidebar for API Key
 with st.sidebar:
     st.header("Settings")
