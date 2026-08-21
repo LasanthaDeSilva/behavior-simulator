@@ -78,15 +78,15 @@ with st.sidebar:
     
     model_choice = st.selectbox(
         "Primary AI Engine",
-        ["Gemini 2.5 Flash", "Gemini 2.0 Flash"]
+        ["Gemini 3.7 Flash", "Gemini 3.6 Flash"]
     )
 
-    if "2.5" in model_choice:
-        primary_model = "gemini-2.5-flash"
-        backup_model = "gemini-2.0-flash"
+    if "3.7" in model_choice:
+        primary_model = "gemini-3.7-flash"
+        backup_model = "gemini-3.6-flash"
     else:
-        primary_model = "gemini-2.0-flash"
-        backup_model = "gemini-2.5-flash"
+        primary_model = "gemini-3.6-flash"
+        backup_model = "gemini-3.7-flash"
 
     api_key = st.secrets.get("GEMINI_API_KEY", "")
     
