@@ -220,20 +220,20 @@ with tab1:
                         response_schema=ForwardPrediction,
                        temperature=0.4
                     )
-            )
-        except Exception as e:
-            # 2. If primary fails, warn the user and switch to backup
-            st.warning(f"Primary engine hit a rate limit. Automatically retrying with backup...")
-            try:
-                response = client.models.generate_content(
-                    model=backup_model,
-                    contents=prompt,
-                    config=types.GenerateContentConfig(
-                        response_mime_type="application/json",
-                        response_schema=ForwardPrediction,
-                        temperature=0.4
-                    )
                 )
+            except Exception as e:
+                # 2. If primary fails, warn the user and switch to backup
+                st.warning(f"Primary engine hit a rate limit. Automatically retrying with backup...")
+                try:
+                    response = client.models.generate_content(
+                        model=backup_model,
+                        contents=prompt,
+                        config=types.GenerateContentConfig(
+                            response_mime_type="application/json",
+                            response_schema=ForwardPrediction,
+                            temperature=0.4
+                        )
+                    )
             except Exception as backup_error:
                 # If both fail, show error and stop execution
                 st.error(f"Both AI engines are currently unavailable. Error: {str(backup_error)}")
