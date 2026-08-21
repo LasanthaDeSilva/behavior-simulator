@@ -13,13 +13,15 @@ from google.genai import types
 
 # Schemas for Forward Predictor
 class PredictedAction(BaseModel):
-    action: str = Field(description="A highly specific action the person will take.")
-    probability_percentage: int = Field(description="Probability of this action occurring (0-100).")
-    rationale: str = Field(description="Explanation of why, specifically detailing how temperament/state modified baseline traits.")
+    action: str = Field(description="A highly specific action the person might take.")
+    raw_weight: int = Field(description="Relative weight of this outcome occurring (1-100). Do not worry about making them sum to 100, Python will normalize this.")
+    rationale: str = Field(description="Explanation of why, detailing mechanisms and specific trait/state interactions.")
 
 class ForwardPrediction(BaseModel):
-    modifier_analysis: str = Field(description="Analysis of how the subject's Sensory/Dopamine/State actively overrode or modified their baseline HEXACO traits in this situation.")
-    predictions: list[PredictedAction] = Field(description="Exactly 3 possible actions, ranked by probability.")
+    modifier_relevance: str = Field(description="Analysis of which specific modifiers (Sensory, Masking, etc.) actually mattered here, and which were irrelevant.")
+    uncertainty_level: str = Field(description="Rate the uncertainty of this prediction: Low, Moderate, or High.")
+    uncertainty_reason: str = Field(description="Explanation of why the prediction carries this level of uncertainty.")
+    predictions: list[PredictedAction] = Field(description="Exactly 3 plausible actions, ranked by weight.")
 
 # Schemas for Reverse Engineer
 class HexacoScores(BaseModel):
@@ -31,14 +33,16 @@ class HexacoScores(BaseModel):
     Openness: int
 
 class ProfileHypothesis(BaseModel):
-    probability_percentage: int = Field(description="Likelihood that this specific profile is the correct one (0-100).")
+    relative_plausibility_score: int = Field(description="Heuristic plausibility score (1-100) indicating how well this profile fits the action.")
     hexaco: HexacoScores
     sensory_threshold: str = Field(description="Deduced sensory threshold.")
-    dopaminergic_system: str = Field(description="Deduced dopamine baseline.")
+    reward_sensitivity: str = Field(description="Deduced reward sensitivity / novelty seeking.")
     current_state: str = Field(description="Deduced temporary state (e.g., panicked, exhausted).")
-    justification: str = Field(description="Explanation of why this specific mix of traits/state leads perfectly to the observed action.")
+    justification: str = Field(description="Explanation of why this specific mix of traits/state leads plausibly to the observed action. Can include 'Insufficient information' if highly ambiguous.")
 
 class ReverseEngineeringResult(BaseModel):
+    evidence_quality: str = Field(description="Assessment of the quality and specificity of the provided context and action.")
+    behavioral_ambiguity: str = Field(description="How ambiguous the behavior is (e.g., 'Highly ambiguous, could be driven by greed OR panic').")
     hypotheses: list[ProfileHypothesis] = Field(description="Exactly 3 distinct profile hypotheses that could have caused the action.")
 
 
@@ -46,7 +50,7 @@ class ReverseEngineeringResult(BaseModel):
 # STREAMLIT APP CONFIGURATION
 # ==========================================
 st.set_page_config(page_title="Behavior Simulator", layout="wide")
-st.title("🧠 Advanced Human Behavior Simulator")
+st.title("🧠 AI-Assisted Behavioral Simulation")
 
 # Sidebar for API Key & Model Settings
 with st.sidebar:
@@ -55,10 +59,9 @@ with st.sidebar:
     model_choice = st.selectbox(
         "Select AI Engine",
         ["Gemini 3.7 Flash (Primary)", "Gemini 3.5 Flash (Backup)"],
-        help="Switch to 3.5 Flash if you hit rate limits on 3.7 Flash."
+        help="Switch to backup if the primary model is unavailable."
     )
 
-    # Set the active model and backup engine
     if "3.7" in model_choice:
         primary_model = "gemini-3.7-flash"
         backup_model = "gemini-3.5-flash"
@@ -68,7 +71,6 @@ with st.sidebar:
 
     api_key = st.secrets.get("GEMINI_API_KEY", "")
     
-    # Fallback if secrets isn't configured during local testing
     if not api_key:
         api_key = st.text_input("Enter Gemini API Key:", type="password")
 
@@ -87,7 +89,7 @@ tab1, tab2 = st.tabs(["🔮 Forward Predictor", "🔍 Reverse Engineer"])
 # TAB 1: FORWARD PREDICTOR
 # ==========================================
 with tab1:
-    st.subheader("Configure Profile & Scenario")
+    st.subheader("Configure Profile & Context")
     col1, col2 = st.columns(2)
     
     with col1:
@@ -99,7 +101,7 @@ with tab1:
         st.markdown("<br>", unsafe_allow_html=True)
         
         e = st.slider("Emotionality", 0, 100, 80)
-        st.caption("Focuses on anxiety and vulnerability. High scorers feel deeper anxiety; low scorers are highly independent.")
+        st.caption("Fearfulness, anxiety sensitivity, dependence, and sentimentality.")
         st.markdown("<br>", unsafe_allow_html=True)
         
         x = st.slider("Extraversion", 0, 100, 50)
@@ -107,7 +109,7 @@ with tab1:
         st.markdown("<br>", unsafe_allow_html=True)
         
         a = st.slider("Agreeableness", 0, 100, 40)
-        st.caption("Involves forgiveness and patience. High scorers compromise easily; low scorers anger quickly.")
+        st.caption("Forgiveness, patience, flexibility, and tolerance toward others.")
         st.markdown("<br>", unsafe_allow_html=True)
         
         c = st.slider("Conscientiousness", 0, 100, 90)
@@ -115,100 +117,80 @@ with tab1:
         st.markdown("<br>", unsafe_allow_html=True)
         
         o = st.slider("Openness to Experience", 0, 100, 15)
-        st.caption("Represents curiosity. High scorers are naturally drawn to novel ideas. Low scorers strongly prefer the familiar, practical solutions, and traditional ways of thinking.")
+        st.caption("Intellectual curiosity, creativity, unconventionality, and aesthetic/experiential engagement.")
         st.markdown("<br>", unsafe_allow_html=True)
 
     with col2:
-        st.markdown("**Temperament & State (The Modifiers)**")
+        st.markdown("**Simulation Parameters (States & Modifiers)**")
         st.markdown("<br>", unsafe_allow_html=True)
         
-        sensory = st.selectbox("Sensory Threshold", ["Low (Easily overwhelmed)", "Medium (Balanced)", "High (Requires intense input)"])
-        st.caption("How the nervous system filters noise. Low = easily overwhelmed; High = needs intense stimulation.")
+        sensory = st.selectbox("Typical Sensory Sensitivity", ["Low (Needs intense input)", "Medium (Balanced)", "High (Easily overwhelmed)"])
+        st.caption("General nervous system filtering threshold.")
         st.markdown("<br>", unsafe_allow_html=True)
 
         sensory_domains = st.multiselect(
-            "Primary Sensory Domains Affected", 
-            [
-                "General / All Senses", 
-                "Auditory (Sound)", 
-                "Visual (Sight)", 
-                "Tactile (Touch)", 
-                "Olfactory (Smell)", 
-                "Gustatory (Taste)", 
-                "Vestibular (Balance/Movement)"
-            ]
+            "Hypothesized Sensory Vectors", 
+            ["Auditory", "Visual", "Tactile", "Olfactory", "Gustatory", "Vestibular"],
+            help="Sensory domains hypothesized to be relevant. The AI will determine if the situation actually activates them."
         )
-        st.caption("The specific sensory system most intensely affected or triggered in this scenario.")
         st.markdown("<br>", unsafe_allow_html=True)
 
         masking = st.selectbox(
-           "Behavioral Masking", 
-           ["None (Unmasked / Natural expression)", "Moderate (Suppressing visible traits for social norms)", "High (Heavy camouflage, high exhaustion risk)"]
+           "Behavioral Masking Tendency", 
+           ["None (Natural expression)", "Moderate", "High (Heavy camouflage)"]
         )
-        st.caption("The degree to which the subject is actively hiding their natural reactions, neurodivergent traits, or stress to conform.")
+        st.caption("Consider whether masking plausibly increases load in this particular context.")
         st.markdown("<br>", unsafe_allow_html=True)
 
         stimming = st.multiselect(
-           "Stimming / Self-Regulation Behaviors", 
-           [
-               "None",
-               "Fidgeting / Hand movements", 
-               "Pacing / Repetitive motion", 
-               "Auditory stimming (Humming, repeating words)", 
-               "Tactile stimming (Rubbing objects, textures)", 
-               "Verbal masking / Scripting"
-           ],
+           "Stimming / Self-Regulation Tendency", 
+           ["None", "Fidgeting", "Pacing", "Auditory stimming", "Tactile stimming", "Vocal scripting"],
            default=["None"]
         )
-        st.caption("Physical or vocal mechanisms used to manage anxiety, sensory overload, or emotional regulation.")
+        st.caption("Potential self-regulatory, sensory-seeking, attention-regulating, emotional, or habitual behavior.")
         st.markdown("<br>", unsafe_allow_html=True)
         
-        dopamine = st.selectbox("Dopaminergic System", ["Low (Cautious/Apathetic)", "Medium (Balanced)", "High (Thrill-seeking/Impulsive)"], index=2)
-        st.caption("The brain's reward center. High = takes risks for thrills; Low = prefers stability and security.")
+        reward_sensitivity = st.selectbox("Reward Sensitivity / Novelty Seeking", ["Low (Prefers predictable/stable options)", "Medium (Balanced)", "High (Sensitive to novelty, reward, stimulation)"], index=2)
         st.markdown("<br>", unsafe_allow_html=True)
         
-        state_trait = st.selectbox("Current State", ["High stress/Panic state", "Relaxed/Calm state", "Fatigued/Burnout", "Baseline"])
-        st.caption("The immediate physical/emotional baseline. Acts as a powerful multiplier to baseline traits.")
+        state_trait = st.selectbox("Current State", ["High stress/Panic", "Relaxed/Calm", "Fatigued/Burnout", "Baseline"])
         st.markdown("<br>", unsafe_allow_html=True)
         
         cognitive_load = st.selectbox("Cognitive Load", ["Low (Clear headed)", "Medium (Busy)", "High (Distracted/Overwhelmed)"])
-        st.caption("Mental bandwidth in use. High load causes people to lose logic and default to raw instinct.")
+        st.caption("High load can reduce working-memory capacity and increase reliance on habitual strategies.")
         st.markdown("<br>", unsafe_allow_html=True)
         
         st.markdown("**Context**")
         extra_details = st.text_input("Extra Details", "Late for an important job interview.")
-        st.markdown("<br>", unsafe_allow_html=True)
         situation = st.text_area("The Situation", "Finds a wallet with $500 cash in a loud, crowded subway station.")
-        st.markdown("<br>", unsafe_allow_html=True)
 
-    if st.button("🚀 Predict Action", type="primary"):
-        hexaco_data = f"H:{h}, E:{e}, X:{x}, A:{a}, C:{c}, O:{o}"
-        
+    if st.button("🚀 Run Behavioral Simulation", type="primary"):
         prompt = f"""
-        You are an elite computational psychologist. 
-        Analyze this subject and predict their behavioral response. 
+        You are an AI performing a behavioral simulation. 
+        CRITICAL RULE: Treat all personality, sensory, reward-sensitivity, and state variables as hypothetical simulation parameters. Do not interpret them as measurements of a real person's neurobiology, diagnosis, or psychological condition.
         
-        APPLY THE MODIFIER MULTIPLIER RULE: 
-        The subject's Temperament, State, Sensory Domains, Masking levels, and Stimming behaviors must actively drive the outcome. Especially their specific Sensory Domains must actively amplify or trigger the outcome based on their Sensory Threshold ({sensory}). If specific sensory domains are selected below, they are the exact vectors causing overstimulation or craving—incorporate them directly into the physical and psychological reaction. High Masking should rapidly drain Cognitive Load and increase internal stress, while Stimming acts as a regulatory valve. Incorporate these mechanisms directly into the predicted actions.
+        PHILOSOPHY: Given these hypothetical parameters and this context, what behaviors are most plausible, what mechanisms support each possibility, and how uncertain is the prediction?
         
-        BASELINE HEXACO: {hexaco_data}
+        Evaluate whether each modifier is relevant to the situation. Do not force irrelevant modifiers to influence the prediction. Determine whether the situation actually activates the hypothesized sensory domains. Consider whether masking plausibly increases cognitive/emotional load here; do not assume an effect when the situation doesn't involve social suppression.
         
-        MODIFIERS: 
-        - Sensory: {sensory}
-        - Affected Sensory Domains: {sensory_domains}
-        - Dopamine: {dopamine}
-        - State: {state_trait}
+        TRAITS:
+        - HEXACO: H:{h}, E:{e}, X:{x}, A:{a}, C:{c}, O:{o}
+        - Reward Sensitivity: {reward_sensitivity}
+        - Typical Sensory Sensitivity: {sensory}
+        
+        STATES & MODIFIERS:
+        - Current State: {state_trait}
         - Cognitive Load: {cognitive_load}
-        - Behavioral Masking: {masking}
-        - Stimming Behaviors: {stimming}
+        - Masking Tendency: {masking}
+        - Stimming Tendency: {stimming}
+        - Hypothesized Sensory Domains: {sensory_domains}
+        
+        CONTEXT:
         - Background: {extra_details}
-        
-        SITUATION: {situation}
-        
-        Provide the top 3 most statistically likely actions with probabilities summing to 100%.
+        - Situation: {situation}
         """
         
-        with st.spinner("Simulating neurobiological response..."):
+        with st.spinner("Simulating plausible behaviors..."):
             try:
                 response = client.models.generate_content(
                     model=primary_model,
@@ -220,7 +202,7 @@ with tab1:
                     )
                 )
             except Exception as e:
-                st.warning("Primary engine hit a rate limit. Automatically retrying with backup...")
+                st.warning("Primary engine failed. Retrying with the backup engine...")
                 try:
                     response = client.models.generate_content(
                         model=backup_model,
@@ -235,14 +217,12 @@ with tab1:
                     st.error(f"Both AI engines are currently unavailable. Error: {str(backup_error)}")
                     st.stop()
 
-            # Store the data in session state instead of rendering it immediately
             try:
                 result = json.loads(response.text)
                 st.session_state['parsed_predictions'] = result
                 st.session_state['last_sim'] = response.text
                 st.session_state['last_situation'] = situation
                 
-                # Clear any old chat responses when running a new prediction
                 if 'last_chat_response' in st.session_state:
                     del st.session_state['last_chat_response']
                     
@@ -256,33 +236,43 @@ with tab1:
         result = st.session_state['parsed_predictions']
         
         st.markdown("---")
-        st.info(f"**🧠 Trait Modifier Analysis:** {result['modifier_analysis']}")
+        
+        col_a, col_b = st.columns(2)
+        with col_a:
+            st.info(f"**🔍 Modifier Relevance:** {result['modifier_relevance']}")
+        with col_b:
+            st.warning(f"**⚠️ Uncertainty Level:** {result['uncertainty_level']}\n\n{result['uncertainty_reason']}")
     
+        st.markdown("### Plausible Actions")
+        
+        # Calculate percentages securely in Python
+        raw_weights = [action['raw_weight'] for action in result['predictions']]
+        total_weight = sum(raw_weights) if sum(raw_weights) > 0 else 1
+        
         for idx, action in enumerate(result['predictions']):
-            st.markdown(f"### {idx+1}. {action['action']}")
-            st.progress(action['probability_percentage'] / 100.0, text=f"{action['probability_percentage']}%")
+            st.markdown(f"**{idx+1}. {action['action']}**")
+            calculated_pct = int((action['raw_weight'] / total_weight) * 100)
+            st.progress(calculated_pct / 100.0, text=f"Relative Plausibility: {calculated_pct}%")
             st.write(f"**Rationale:** {action['rationale']}")
             st.divider()
 
         # === FOLLOW-UP CHAT FEATURE ===
-        st.markdown("### 💬 Ask a Follow-up Question")
+        st.markdown("### 💬 Counterfactual Analysis")
+        st.caption("Try asking: *What if the environment became quiet?* or *What if the person wasn't late?*")
 
         with st.form("chat_form"):
-            query = st.text_input(
-                "Explore this simulation deeper:",
-                placeholder="e.g., How would their reaction change if the sensory noise doubled?"
-            )
-            submit_q = st.form_submit_button("Ask Gemini")
+            query = st.text_input("Test a scenario change:", placeholder="What if sensory load doubled?")
+            submit_q = st.form_submit_button("Test Hypothesis")
     
             if submit_q and query:
                 chat_prompt = f"""
-                You are continuing the analysis for the following psychological profile.
-                SITUATION: {st.session_state['last_situation']}
+                You are continuing a behavioral simulation. Treat all parameters as hypothetical.
+                ORIGINAL SITUATION: {st.session_state['last_situation']}
                 PREVIOUS AI PREDICTIONS: {st.session_state['last_sim']}
         
-                USER FOLLOW-UP QUESTION: {query}
+                USER HYPOTHESIS/QUESTION: {query}
         
-                Provide a direct, concise, and scientifically grounded response addressing this specific query. Do not use JSON formatting.
+                Provide a direct, concise, and scientifically grounded response addressing how this specific change alters the plausible behaviors. Do not use JSON formatting.
                 """
         
                 try:
@@ -298,7 +288,6 @@ with tab1:
                     )
                     st.session_state['last_chat_response'] = chat_response.text
 
-        # Display the chat answer persistently
         if 'last_chat_response' in st.session_state and st.session_state['last_chat_response']:
             st.info(st.session_state['last_chat_response'])
 
@@ -308,26 +297,27 @@ with tab1:
 # ==========================================
 with tab2:
     st.subheader("Reverse Engineer Profile from Action")
-    st.info("💡 Solves the 'One-to-Many' problem: Generates the top 3 distinct personality profiles that could result in the exact same behavior.")
+    st.info("💡 Explores the 'One-to-Many' problem: A single action can be caused by completely different psychological profiles.")
     
     rev_situation = st.text_area("Situation Context", "Finds a lost wallet containing $500 cash in a crowded subway station.")
     observed_action = st.text_area("Observed Action", "Grabbed the cash immediately, threw the wallet onto the tracks, and ran onto the train.")
     known_context = st.text_input("Known Context (Optional)", "Late for work")
     
-    if st.button("🔬 Reverse Engineer Profile", type="primary"):
+    if st.button("🔬 Analyze Plausible Profiles", type="primary"):
         prompt = f"""
-        You are an elite computational psychologist. Address the "One-to-Many" behavioral problem: A single action can be caused by completely different psychological profiles. 
+        You are an AI performing a behavioral simulation. Address the "One-to-Many" behavioral problem.
+        CRITICAL RULE: Treat all outputs as hypothetical simulation parameters, not medical diagnoses.
         
         SITUATION: {rev_situation}
         OBSERVED ACTION: {observed_action}
         KNOWN CONTEXT: {known_context}
         
-        Provide the TOP 3 completely distinct profiles (combinations of HEXACO, Temperament, and State) that would result in this exact action. Rank them by probability.
+        Provide the TOP 3 completely distinct profiles (combinations of HEXACO, Modifiers, and State) that plausibly explain this exact action. 
+        If the behavior is highly ambiguous, state "Insufficient information to distinguish accurately" in your justifications and explain why.
         """
         
-        with st.spinner("Running reverse behavioral heuristics..."):
+        with st.spinner("Analyzing behavioral heuristics..."):
             try:
-                # 1. Try the primary model
                 response = client.models.generate_content(
                     model=primary_model,
                     contents=prompt,
@@ -338,8 +328,7 @@ with tab2:
                     )
                 )
             except Exception as e:
-                # 2. If primary fails, warn the user and switch to backup
-                st.warning("Primary engine hit a rate limit. Automatically retrying with backup...")
+                st.warning("Primary engine failed. Retrying with the backup engine...")
                 try:
                     response = client.models.generate_content(
                         model=backup_model,
@@ -354,7 +343,6 @@ with tab2:
                     st.error(f"Both AI engines are currently unavailable. Error: {str(backup_error)}")
                     st.stop()
                     
-            # 3. Save to session state so it doesn't vanish if the user interacts elsewhere
             try:
                 result = json.loads(response.text)
                 st.session_state['reverse_parsed_predictions'] = result
@@ -368,15 +356,21 @@ with tab2:
         result = st.session_state['reverse_parsed_predictions']
         st.markdown("---")
         
+        col_ambig, col_ev = st.columns(2)
+        col_ambig.info(f"**🧩 Behavioral Ambiguity:** {result['behavioral_ambiguity']}")
+        col_ev.info(f"**🔬 Evidence Quality:** {result['evidence_quality']}")
+        
+        st.markdown("<br>", unsafe_allow_html=True)
+        
         cols = st.columns(3)
         for idx, (col, hyp) in enumerate(zip(cols, result['hypotheses'])):
             with col:
-                st.markdown(f"### Hypothesis {idx+1}")
-                st.progress(hyp['probability_percentage'] / 100.0, text=f"Likelihood: {hyp['probability_percentage']}%")
+                st.markdown(f"### Profile Hypothesis {idx+1}")
+                st.progress(hyp['relative_plausibility_score'] / 100.0, text=f"Relative Plausibility: {hyp['relative_plausibility_score']}/100")
                 
                 st.markdown("**🧠 Deduced State & Temperament**")
                 st.write(f"- **Sensory:** {hyp['sensory_threshold']}")
-                st.write(f"- **Dopamine:** {hyp['dopaminergic_system']}")
+                st.write(f"- **Reward Sens:** {hyp['reward_sensitivity']}")
                 st.write(f"- **State:** {hyp['current_state']}")
                 
                 st.markdown("**📊 Estimated HEXACO**")
@@ -392,8 +386,8 @@ st.divider()
 st.markdown(
     """
     <div style='text-align: center; color: gray; font-size: 0.85em;'>
-        <p><b>Behavioral & Psychological Simulator</b> | Built with Streamlit & Google Gemini</p>
-        <p>⚠️ <em>Disclaimer: This application is for educational, creative, and exploratory simulation purposes only. It does not provide medical diagnoses, psychological evaluations, or professional clinical advice.</em></p>
+        <p><b>AI-Assisted Behavioral Simulation</b> | Built with Streamlit & Google Gemini</p>
+        <p>⚠️ <em>Disclaimer: This application is for educational, creative, and exploratory simulation purposes only. It does not provide medical diagnoses, psychological evaluations, or professional clinical advice. All outputs are generated heuristically by an AI model.</em></p>
     </div>
     """,
     unsafe_allow_html=True
