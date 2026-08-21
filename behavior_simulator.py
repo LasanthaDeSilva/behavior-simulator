@@ -126,7 +126,8 @@ def calculate_normalized_percentages(predictions_list):
 
 
 # Create Tabs
-tab1, tab2 = st.tabs(["🔮 Forward Predictor", "🔍 Behavior → Competing Explanations"])
+tab1, tab2, tab3 = st.tabs(["🔮 Forward Predictor", "🔍 Behavior → Competing Explanations", "📖 Science & Methodology"])
+
 
 # ==========================================
 # TAB 1: FORWARD PREDICTOR
@@ -529,6 +530,62 @@ with tab2:
                     st.markdown(f"**A:** {h_data['Agreeableness']}")
                     st.markdown(f"**C:** {h_data['Conscientiousness']}")
                     st.markdown(f"**O:** {h_data['Openness']}")
+
+
+# ==========================================
+# TAB 3: SCIENCE & METHODOLOGY
+# ==========================================
+with tab3:
+    st.header("The Science & Logic Behind the Simulator")
+    st.info("This tool operates on the principle of **Equifinality** (the 'One-to-Many' problem): The reality that multiple, entirely distinct psychological configurations and situational pressures can result in the exact same observable behavior.")
+    
+    st.markdown("### 1. Traits vs. States vs. Context")
+    st.markdown("Human behavior is rarely a straight line from personality to action. We simulate behavior as an interaction between three distinct layers:")
+    
+    col_a, col_b, col_c = st.columns(3)
+    with col_a:
+        st.markdown("**1. Traits (The Baseline)**")
+        st.write("Stable, long-term tendencies. This is a person's default operating system when perfectly relaxed and unpressured.")
+    with col_b:
+        st.markdown("**2. States (The Override)**")
+        st.write("Temporary physiological or emotional conditions—like fatigue, high stress, or cognitive load. High-pressure states often override stable traits.")
+    with col_c:
+        st.markdown("**3. Context (The Environment)**")
+        st.write("The external structural reality. Social norms, systemic pressures, time constraints, and physical surroundings.")
+    st.markdown("---")
+    
+    st.markdown("### 2. The HEXACO Personality Model")
+    st.markdown("Instead of the traditional Big Five, this simulator uses the HEXACO model. We use it because the addition of the Honesty-Humility dimension is crucial for modeling ethical decision-making, exploitation, and social fairness.")
+    
+    st.markdown("""
+
+| Dimension | High Scorers Tend To Be... | Low Scorers Tend To Be... |
+| :--- | :--- | :--- |
+| **Honesty-Humility (H)** | Fair, sincere, modest, and avoidant of exploiting others. | Driven by wealth/status, willing to manipulate or bend rules. |
+| **Emotionality (E)** | Sensitive, empathetic, vulnerable to stress, and cautious. | Fearless, detached, tough, and highly independent. |
+| **Extraversion (X)** | Sociable, bold, energetic, and thrive on social attention. | Reserved, quiet, and prefer to stay out of the spotlight. |
+| **Agreeableness (A)** | Patient, forgiving, gentle, and cooperative. | Stubborn, critical, quick to anger, and argumentative. |
+| **Conscientiousness (C)** | Organized, disciplined, careful, and goal-oriented. | Spontaneous, impulsive, disorganized, and flexible. |
+| **Openness (O)** | Creative, unconventional, curious, and drawn to novelty. | Practical, traditional, and prefer familiar routines. |
+
+    """)
+    st.markdown("---")
+    
+    st.markdown("### 3. Modifiers & Cognitive Load")
+    st.markdown("People do not exist in a vacuum. The simulator accounts for how environmental friction impacts processing and resilience.")
+    
+    st.markdown("""
+    * **Cognitive Load:** When mental bandwidth is maxed out, working memory drops. People rely less on deep logic and more on learned habits, heuristics, or basic survival instincts.
+    * **Sensory Processing:** Environmental factors (noise, lights, crowds) are not experienced equally. A highly reactive sensory profile in a chaotic environment rapidly drains cognitive resources.
+    * **Masking Tendency:** The conscious or subconscious effort to suppress natural behaviors to fit social expectations. Masking requires immense mental energy, accelerating fatigue in social contexts.
+    * **Self-Regulation (Stimming):** Repetitive physical or verbal actions used to manage sensory input or emotional states. This is a natural coping mechanism, not inherently a sign of distress.
+    """)
+    
+    st.markdown("---")
+    
+    st.markdown("### 4. Epistemological Humility")
+    st.markdown("The most important rule of this simulator is that **it does not diagnose**. We cannot reverse-engineer a human being from a single action. The app intentionally generates competing hypotheses to demonstrate that what looks like 'bad character' might actually be cognitive overload, systemic pressure, or a simple misunderstanding.")
+
 
 # --- PERMANENT FOOTER ---
 st.markdown("<br><br>", unsafe_allow_html=True)
