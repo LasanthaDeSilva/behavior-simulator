@@ -59,7 +59,7 @@ class ReverseEngineeringResult(BaseModel):
 # STREAMLIT APP CONFIGURATION
 # ==========================================
 st.set_page_config(page_title="Behavior Simulator", layout="wide")
-st.title("🧠 AI-Assisted Behavioral Simulation")
+st.title("Behavioral Scenario Lab")
 
 # Initialize Session State early for stability
 for key in ['parsed_predictions', 'reverse_parsed_predictions', 'last_sim', 'last_situation', 'last_chat_response', 'last_config', 'simulation_id']:
