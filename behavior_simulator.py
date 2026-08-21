@@ -48,12 +48,6 @@ class ReverseEngineeringResult(BaseModel):
 st.set_page_config(page_title="Behavior Simulator", layout="wide")
 st.title("🧠 Advanced Human Behavior Simulator")
 
-# Initialize session state variables if they don't exist yet
-if "forward_result" not in st.session_state:
-    st.session_state.forward_result = None
-if "reverse_result" not in st.session_state:
-    st.session_state.reverse_result = None
-
 # Sidebar for API Key & Model Settings
 with st.sidebar:
     st.header("Settings")
@@ -72,10 +66,14 @@ with st.sidebar:
         primary_model = "gemini-3.5-flash"
         backup_model = "gemini-3.7-flash"
 
-    api_key = st.secrets["GEMINI_API_KEY"]
+    api_key = st.secrets.get("GEMINI_API_KEY", "")
+    
+    # Fallback if secrets isn't configured during local testing
+    if not api_key:
+        api_key = st.text_input("Enter Gemini API Key:", type="password")
 
 if not api_key:
-    st.warning("Please enter your Gemini API Key in the sidebar.")
+    st.warning("Please enter your Gemini API Key in the sidebar or configure your secrets.")
     st.stop()
 
 # Initialize Client
@@ -129,16 +127,17 @@ with tab1:
         st.markdown("<br>", unsafe_allow_html=True)
 
         sensory_domains = st.multiselect(
-        "Primary Sensory Domains Affected", 
-        [
-            "General / All Senses", 
-            "Auditory (Sound)", 
-            "Visual (Sight)", 
-            "Tactile (Touch)", 
-            "Olfactory (Smell)", 
-            "Gustatory (Taste)", 
-            "Vestibular (Balance/Movement)"
-        ])
+            "Primary Sensory Domains Affected", 
+            [
+                "General / All Senses", 
+                "Auditory (Sound)", 
+                "Visual (Sight)", 
+                "Tactile (Touch)", 
+                "Olfactory (Smell)", 
+                "Gustatory (Taste)", 
+                "Vestibular (Balance/Movement)"
+            ]
+        )
         st.caption("The specific sensory system most intensely affected or triggered in this scenario.")
         st.markdown("<br>", unsafe_allow_html=True)
 
@@ -211,19 +210,17 @@ with tab1:
         
         with st.spinner("Simulating neurobiological response..."):
             try:
-                # 1. Try the primary model
                 response = client.models.generate_content(
                     model=primary_model,
                     contents=prompt,
                     config=types.GenerateContentConfig(
                         response_mime_type="application/json",
                         response_schema=ForwardPrediction,
-                       temperature=0.4
+                        temperature=0.4
                     )
                 )
             except Exception as e:
-                # 2. If primary fails, warn the user and switch to backup
-                st.warning(f"Primary engine hit a rate limit. Automatically retrying with backup...")
+                st.warning("Primary engine hit a rate limit. Automatically retrying with backup...")
                 try:
                     response = client.models.generate_content(
                         model=backup_model,
@@ -235,72 +232,75 @@ with tab1:
                         )
                     )
                 except Exception as backup_error:
-                    # If both fail, show error and stop execution
                     st.error(f"Both AI engines are currently unavailable. Error: {str(backup_error)}")
                     st.stop()
 
-            # 3. If either model succeeded, render the results to the UI
+            # Store the data in session state instead of rendering it immediately
             try:
                 result = json.loads(response.text)
-            
-                st.markdown("---")
-                st.info(f"**🧠 Trait Modifier Analysis:** {result['modifier_analysis']}")
-            
-                for idx, action in enumerate(result['predictions']):
-                    st.markdown(f"### {idx+1}. {action['action']}")
-                    # Using your exact progress bar and markdown logic
-                    st.progress(action['probability_percentage'] / 100.0, text=f"{action['probability_percentage']}%")
-                    st.write(f"**Rationale:** {action['rationale']}")
-                    st.divider()
-             
-                # Save this run to memory for the follow-up chat
+                st.session_state['parsed_predictions'] = result
                 st.session_state['last_sim'] = response.text
                 st.session_state['last_situation'] = situation
-
                 
+                # Clear any old chat responses when running a new prediction
+                if 'last_chat_response' in st.session_state:
+                    del st.session_state['last_chat_response']
+                    
             except Exception as parse_error:
                 st.error(f"Error reading the AI output: {str(parse_error)}")
 
-        # === FOLLOW-UP CHAT FEATURE ===
-        if 'last_sim' in st.session_state:
-            st.markdown("---")
-            st.markdown("### 💬 Ask a Follow-up Question")
-    
-            with st.form("chat_form"):
-                query = st.text_input(
-                    "Explore this simulation deeper:",
-                    placeholder="e.g., How would their reaction change if the sensory noise doubled?"
-                )
-                submit_q = st.form_submit_button("Ask Gemini")
+    # ==========================================
+    # RENDER PREDICTIONS AND CHAT PERSISTENTLY
+    # ==========================================
+    if 'parsed_predictions' in st.session_state:
+        result = st.session_state['parsed_predictions']
         
-                if submit_q and query:
-                    chat_prompt = f"""
-                    You are continuing the analysis for the following psychological profile.
-                    SITUATION: {st.session_state['last_situation']}
-                    PREVIOUS AI PREDICTIONS: {st.session_state['last_sim']}
-            
-                    USER FOLLOW-UP QUESTION: {query}
-            
-                    Provide a direct, concise, and scientifically grounded response addressing this specific query. Do not use JSON formatting.
-                    """
-            
-                    try:
-                        chat_response = client.models.generate_content(
-                           model=primary_model,
-                           contents=chat_prompt
-                        )
-                        st.session_state['last_chat_response'] = chat_response.text
-                    except Exception:
-                        chat_response = client.models.generate_content(
-                           model=backup_model,
-                           contents=chat_prompt
-                        )
-                        st.session_state['last_chat_response'] = chat_response.text
+        st.markdown("---")
+        st.info(f"**🧠 Trait Modifier Analysis:** {result['modifier_analysis']}")
+    
+        for idx, action in enumerate(result['predictions']):
+            st.markdown(f"### {idx+1}. {action['action']}")
+            st.progress(action['probability_percentage'] / 100.0, text=f"{action['probability_percentage']}%")
+            st.write(f"**Rationale:** {action['rationale']}")
+            st.divider()
 
-            # Display the answer persistently outside the form so it doesn't vanish
-            if 'last_chat_response' in st.session_state and st.session_state['last_chat_response']:
-               st.info(st.session_state['last_chat_response'])
+        # === FOLLOW-UP CHAT FEATURE ===
+        st.markdown("### 💬 Ask a Follow-up Question")
 
+        with st.form("chat_form"):
+            query = st.text_input(
+                "Explore this simulation deeper:",
+                placeholder="e.g., How would their reaction change if the sensory noise doubled?"
+            )
+            submit_q = st.form_submit_button("Ask Gemini")
+    
+            if submit_q and query:
+                chat_prompt = f"""
+                You are continuing the analysis for the following psychological profile.
+                SITUATION: {st.session_state['last_situation']}
+                PREVIOUS AI PREDICTIONS: {st.session_state['last_sim']}
+        
+                USER FOLLOW-UP QUESTION: {query}
+        
+                Provide a direct, concise, and scientifically grounded response addressing this specific query. Do not use JSON formatting.
+                """
+        
+                try:
+                    chat_response = client.models.generate_content(
+                        model=primary_model,
+                        contents=chat_prompt
+                    )
+                    st.session_state['last_chat_response'] = chat_response.text
+                except Exception:
+                    chat_response = client.models.generate_content(
+                        model=backup_model,
+                        contents=chat_prompt
+                    )
+                    st.session_state['last_chat_response'] = chat_response.text
+
+        # Display the chat answer persistently
+        if 'last_chat_response' in st.session_state and st.session_state['last_chat_response']:
+            st.info(st.session_state['last_chat_response'])
 
 
 # ==========================================
@@ -327,40 +327,64 @@ with tab2:
         
         with st.spinner("Running reverse behavioral heuristics..."):
             try:
+                # 1. Try the primary model
                 response = client.models.generate_content(
-                    model=model_id,
+                    model=primary_model,
                     contents=prompt,
                     config=types.GenerateContentConfig(
                         response_mime_type="application/json",
                         response_schema=ReverseEngineeringResult,
-                        temperature=0.6 # Slightly higher temp allows for more creative reverse-engineering 
+                        temperature=0.6 
                     )
                 )
-                
-                result = json.loads(response.text)
-                st.markdown("---")
-                
-                cols = st.columns(3)
-                for idx, (col, hyp) in enumerate(zip(cols, result['hypotheses'])):
-                    with col:
-                        st.markdown(f"### Hypothesis {idx+1}")
-                        st.progress(hyp['probability_percentage'] / 100.0, text=f"Likelihood: {hyp['probability_percentage']}%")
-                        
-                        st.markdown("**🧠 Deduced State & Temperament**")
-                        st.write(f"- **Sensory:** {hyp['sensory_threshold']}")
-                        st.write(f"- **Dopamine:** {hyp['dopaminergic_system']}")
-                        st.write(f"- **State:** {hyp['current_state']}")
-                        
-                        st.markdown("**📊 Estimated HEXACO**")
-                        h_data = hyp['hexaco']
-                        st.caption(f"H:{h_data['Honesty_Humility']} | E:{h_data['Emotionality']} | X:{h_data['Extraversion']} | A:{h_data['Agreeableness']} | C:{h_data['Conscientiousness']} | O:{h_data['Openness']}")
-                        
-                        with st.expander("Read Justification"):
-                            st.write(hyp['justification'])
-
             except Exception as e:
-                st.error(f"Error during reverse engineering: {str(e)}")
+                # 2. If primary fails, warn the user and switch to backup
+                st.warning("Primary engine hit a rate limit. Automatically retrying with backup...")
+                try:
+                    response = client.models.generate_content(
+                        model=backup_model,
+                        contents=prompt,
+                        config=types.GenerateContentConfig(
+                            response_mime_type="application/json",
+                            response_schema=ReverseEngineeringResult,
+                            temperature=0.6 
+                        )
+                    )
+                except Exception as backup_error:
+                    st.error(f"Both AI engines are currently unavailable. Error: {str(backup_error)}")
+                    st.stop()
+                    
+            # 3. Save to session state so it doesn't vanish if the user interacts elsewhere
+            try:
+                result = json.loads(response.text)
+                st.session_state['reverse_parsed_predictions'] = result
+            except Exception as parse_error:
+                st.error(f"Error reading the AI output: {str(parse_error)}")
 
+    # ==========================================
+    # RENDER REVERSE PREDICTIONS PERSISTENTLY
+    # ==========================================
+    if 'reverse_parsed_predictions' in st.session_state:
+        result = st.session_state['reverse_parsed_predictions']
+        st.markdown("---")
+        
+        cols = st.columns(3)
+        for idx, (col, hyp) in enumerate(zip(cols, result['hypotheses'])):
+            with col:
+                st.markdown(f"### Hypothesis {idx+1}")
+                st.progress(hyp['probability_percentage'] / 100.0, text=f"Likelihood: {hyp['probability_percentage']}%")
+                
+                st.markdown("**🧠 Deduced State & Temperament**")
+                st.write(f"- **Sensory:** {hyp['sensory_threshold']}")
+                st.write(f"- **Dopamine:** {hyp['dopaminergic_system']}")
+                st.write(f"- **State:** {hyp['current_state']}")
+                
+                st.markdown("**📊 Estimated HEXACO**")
+                h_data = hyp['hexaco']
+                st.caption(f"H:{h_data['Honesty_Humility']} | E:{h_data['Emotionality']} | X:{h_data['Extraversion']} | A:{h_data['Agreeableness']} | C:{h_data['Conscientiousness']} | O:{h_data['Openness']}")
+                
+                with st.expander("Read Justification"):
+                    st.write(hyp['justification'])
 
 # --- PERMANENT FOOTER ---
 st.markdown("<br><br>", unsafe_allow_html=True)
@@ -374,4 +398,3 @@ st.markdown(
     """,
     unsafe_allow_html=True
 )
-
