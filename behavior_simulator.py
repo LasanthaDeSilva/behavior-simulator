@@ -234,27 +234,27 @@ with tab1:
                             temperature=0.4
                         )
                     )
-            except Exception as backup_error:
-                # If both fail, show error and stop execution
-                st.error(f"Both AI engines are currently unavailable. Error: {str(backup_error)}")
-                st.stop()
+                except Exception as backup_error:
+                    # If both fail, show error and stop execution
+                    st.error(f"Both AI engines are currently unavailable. Error: {str(backup_error)}")
+                    st.stop()
 
-        # 3. If either model succeeded, render the results to the UI
-        try:
-            result = json.loads(response.text)
+            # 3. If either model succeeded, render the results to the UI
+            try:
+                result = json.loads(response.text)
             
-            st.markdown("---")
-            st.info(f"**🧠 Trait Modifier Analysis:** {result['modifier_analysis']}")
+                st.markdown("---")
+                st.info(f"**🧠 Trait Modifier Analysis:** {result['modifier_analysis']}")
             
-            for idx, action in enumerate(result['predictions']):
-                st.markdown(f"### {idx+1}. {action['action']}")
-                # Using your exact progress bar and markdown logic
-                st.progress(action['probability_percentage'] / 100.0, text=f"{action['probability_percentage']}%")
-                st.write(f"**Rationale:** {action['rationale']}")
-                st.divider()
+                for idx, action in enumerate(result['predictions']):
+                    st.markdown(f"### {idx+1}. {action['action']}")
+                    # Using your exact progress bar and markdown logic
+                    st.progress(action['probability_percentage'] / 100.0, text=f"{action['probability_percentage']}%")
+                    st.write(f"**Rationale:** {action['rationale']}")
+                    st.divider()
                 
-        except Exception as parse_error:
-            st.error(f"Error reading the AI output: {str(parse_error)}")
+            except Exception as parse_error:
+                st.error(f"Error reading the AI output: {str(parse_error)}")
 
 
 # ==========================================
