@@ -211,15 +211,15 @@ with tab1:
         
         with st.spinner("Simulating neurobiological response..."):
             try:
-            # 1. Try the primary model
-            response = client.models.generate_content(
-                model=primary_model,
-                contents=prompt,
-                config=types.GenerateContentConfig(
-                    response_mime_type="application/json",
-                    response_schema=ForwardPrediction,
-                    temperature=0.4
-                )
+                # 1. Try the primary model
+                response = client.models.generate_content(
+                    model=primary_model,
+                    contents=prompt,
+                    config=types.GenerateContentConfig(
+                        response_mime_type="application/json",
+                        response_schema=ForwardPrediction,
+                       temperature=0.4
+                    )
             )
         except Exception as e:
             # 2. If primary fails, warn the user and switch to backup
