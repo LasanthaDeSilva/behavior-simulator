@@ -533,58 +533,68 @@ with tab2:
 
 
 # ==========================================
-# TAB 3: SCIENCE & METHODOLOGY
+# TAB 3: SCIENCE & METHODOLOGY (Gemini-Powered)
 # ==========================================
 with tab3:
-    st.header("The Science & Logic Behind the Simulator")
-    st.info("This tool operates on the principle of **Equifinality** (the 'One-to-Many' problem): The reality that multiple, entirely distinct psychological configurations and situational pressures can result in the exact same observable behavior.")
+    st.header("📖 The Science Behind the Simulator")
+    st.info("Explore the sociological and psychological concepts powering this engine. Select a core concept or ask your own!")
     
-    st.markdown("### 1. Traits vs. States vs. Context")
-    st.markdown("Human behavior is rarely a straight line from personality to action. We simulate behavior as an interaction between three distinct layers:")
-    
-    col_a, col_b, col_c = st.columns(3)
-    with col_a:
-        st.markdown("**1. Traits (The Baseline)**")
-        st.write("Stable, long-term tendencies. This is a person's default operating system when perfectly relaxed and unpressured.")
-    with col_b:
-        st.markdown("**2. States (The Override)**")
-        st.write("Temporary physiological or emotional conditions—like fatigue, high stress, or cognitive load. High-pressure states often override stable traits.")
-    with col_c:
-        st.markdown("**3. Context (The Environment)**")
-        st.write("The external structural reality. Social norms, systemic pressures, time constraints, and physical surroundings.")
     st.markdown("---")
     
-    st.markdown("### 2. The HEXACO Personality Model")
-    st.markdown("Instead of the traditional Big Five, this simulator uses the HEXACO model. We use it because the addition of the Honesty-Humility dimension is crucial for modeling ethical decision-making, exploitation, and social fairness.")
+    concept_choice = st.selectbox(
+        "Select a concept to learn about:",
+        [
+            "Equifinality (The One-to-Many Problem)", 
+            "The HEXACO Personality Model", 
+            "Cognitive Load & Working Memory", 
+            "Sensory Processing & Overload", 
+            "Behavioral Masking", 
+            "Traits vs. States vs. Context", 
+            "Custom (Ask your own question)"
+        ]
+    )
     
-    st.markdown("""
+    custom_concept = ""
+    if concept_choice == "Custom (Ask your own question)":
+        custom_concept = st.text_input("What behavioral concept would you like explained?")
+        
+    if st.button("🧠 Generate Explanation", type="primary"):
+        target_concept = custom_concept if concept_choice == "Custom (Ask your own question)" else concept_choice
+        
+        if not target_concept:
+            st.warning("Please enter or select a concept to explain.")
+        else:
+            explain_prompt = f"""
+            You are an expert sociologist and author specializing in human resilience and behavioral science.
+            Explain the concept of "{target_concept}" comprehensively but in a way that is highly accessible and easy for a layperson to understand.
+            
+            Structure your explanation logically:
+            1. **The Core Definition:** A clear, simple explanation of what it is.
+            2. **The Mechanics:** How this concept actually operates in real-world human behavior and structural environments.
+            3. **Resilience & Reality:** A brief, relatable example of how this impacts everyday decision-making or coping.
+            
+            Use Markdown formatting (bolding, bullet points) for scannability. Do not use JSON formatting. Keep it engaging, scientific, and grounded in reality.
+            """
+            
+            with st.spinner(f"Analyzing '{target_concept}'..."):
+                try:
+                    # Try Primary Model
+                    explanation = client.models.generate_content(
+                        model=primary_model,
+                        contents=explain_prompt
+                    )
+                    st.markdown(explanation.text)
+                except Exception as e1:
+                    try:
+                        # Try Backup Model
+                        explanation = client.models.generate_content(
+                            model=backup_model,
+                            contents=explain_prompt
+                        )
+                        st.markdown(explanation.text)
+                    except Exception as e2:
+                        st.error("Both AI engines are currently unavailable to generate this explanation.")
 
-| Dimension | High Scorers Tend To Be... | Low Scorers Tend To Be... |
-| :--- | :--- | :--- |
-| **Honesty-Humility (H)** | Fair, sincere, modest, and avoidant of exploiting others. | Driven by wealth/status, willing to manipulate or bend rules. |
-| **Emotionality (E)** | Sensitive, empathetic, vulnerable to stress, and cautious. | Fearless, detached, tough, and highly independent. |
-| **Extraversion (X)** | Sociable, bold, energetic, and thrive on social attention. | Reserved, quiet, and prefer to stay out of the spotlight. |
-| **Agreeableness (A)** | Patient, forgiving, gentle, and cooperative. | Stubborn, critical, quick to anger, and argumentative. |
-| **Conscientiousness (C)** | Organized, disciplined, careful, and goal-oriented. | Spontaneous, impulsive, disorganized, and flexible. |
-| **Openness (O)** | Creative, unconventional, curious, and drawn to novelty. | Practical, traditional, and prefer familiar routines. |
-
-    """)
-    st.markdown("---")
-    
-    st.markdown("### 3. Modifiers & Cognitive Load")
-    st.markdown("People do not exist in a vacuum. The simulator accounts for how environmental friction impacts processing and resilience.")
-    
-    st.markdown("""
-    * **Cognitive Load:** When mental bandwidth is maxed out, working memory drops. People rely less on deep logic and more on learned habits, heuristics, or basic survival instincts.
-    * **Sensory Processing:** Environmental factors (noise, lights, crowds) are not experienced equally. A highly reactive sensory profile in a chaotic environment rapidly drains cognitive resources.
-    * **Masking Tendency:** The conscious or subconscious effort to suppress natural behaviors to fit social expectations. Masking requires immense mental energy, accelerating fatigue in social contexts.
-    * **Self-Regulation (Stimming):** Repetitive physical or verbal actions used to manage sensory input or emotional states. This is a natural coping mechanism, not inherently a sign of distress.
-    """)
-    
-    st.markdown("---")
-    
-    st.markdown("### 4. Epistemological Humility")
-    st.markdown("The most important rule of this simulator is that **it does not diagnose**. We cannot reverse-engineer a human being from a single action. The app intentionally generates competing hypotheses to demonstrate that what looks like 'bad character' might actually be cognitive overload, systemic pressure, or a simple misunderstanding.")
 
 
 # --- PERMANENT FOOTER ---
