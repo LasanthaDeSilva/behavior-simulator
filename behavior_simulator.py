@@ -54,13 +54,24 @@ if "forward_result" not in st.session_state:
 if "reverse_result" not in st.session_state:
     st.session_state.reverse_result = None
 
-# Sidebar for API Key
+# Sidebar for API Key & Model Settings
 with st.sidebar:
     st.header("Settings")
-    # Note: gemini-3.6-flash doesn't exist yet in the official API. 
-    # gemini-2.5-flash or gemini-2.0-flash is the current generation. 
-    # Update this string if you have early access to a specific model naming convention.
-    model_id = st.text_input("Gemini Model ID", value="gemini-3.6-flash") 
+    
+    model_choice = st.selectbox(
+        "Select AI Engine",
+        ["Gemini 3.6 Flash (Primary)", "Gemini 2.5 Flash (Backup)"],
+        help="Switch to 2.5 Flash if you hit rate limits on 3.6 Flash."
+    )
+    
+    # Set the active model and backup engine
+    if "3.6" in model_choice:
+        primary_model = "gemini-3.6-flash"
+        backup_model = "gemini-2.5-flash"
+    else:
+        primary_model = "gemini-2.5-flash"
+        backup_model = "gemini-3.6-flash"
+
     api_key = st.secrets["GEMINI_API_KEY"]
 
 if not api_key:
@@ -69,6 +80,7 @@ if not api_key:
 
 # Initialize Client
 client = genai.Client(api_key=api_key)
+
 
 # Create Tabs
 tab1, tab2 = st.tabs(["🔮 Forward Predictor", "🔍 Reverse Engineer"])
@@ -199,8 +211,22 @@ with tab1:
         
         with st.spinner("Simulating neurobiological response..."):
             try:
+            # 1. Try the primary model
+            response = client.models.generate_content(
+                model=primary_model,
+                contents=prompt,
+                config=types.GenerateContentConfig(
+                    response_mime_type="application/json",
+                    response_schema=ForwardPrediction,
+                    temperature=0.4
+                )
+            )
+        except Exception as e:
+            # 2. If primary fails, warn the user and switch to backup
+            st.warning(f"Primary engine hit a rate limit. Automatically retrying with backup...")
+            try:
                 response = client.models.generate_content(
-                    model=model_id,
+                    model=backup_model,
                     contents=prompt,
                     config=types.GenerateContentConfig(
                         response_mime_type="application/json",
@@ -208,20 +234,28 @@ with tab1:
                         temperature=0.4
                     )
                 )
-                
-                result = json.loads(response.text)
-                
-                st.markdown("---")
-                st.info(f"**🧠 Trait Modifier Analysis:** {result['modifier_analysis']}")
-                
-                for idx, action in enumerate(result['predictions']):
-                    st.markdown(f"### {idx+1}. {action['action']}")
-                    st.progress(action['probability_percentage'] / 100.0, text=f"{action['probability_percentage']}% Probability")
-                    st.write(f"**Rationale:** {action['rationale']}")
-                    st.divider()
+            except Exception as backup_error:
+                # If both fail, show error and stop execution
+                st.error(f"Both AI engines are currently unavailable. Error: {str(backup_error)}")
+                st.stop()
 
-            except Exception as e:
-                st.error(f"Error generating prediction: {str(e)}")
+        # 3. If either model succeeded, render the results to the UI
+        try:
+            result = json.loads(response.text)
+            
+            st.markdown("---")
+            st.info(f"**🧠 Trait Modifier Analysis:** {result['modifier_analysis']}")
+            
+            for idx, action in enumerate(result['predictions']):
+                st.markdown(f"### {idx+1}. {action['action']}")
+                # Using your exact progress bar and markdown logic
+                st.progress(action['probability_percentage'] / 100.0, text=f"{action['probability_percentage']}%")
+                st.write(f"**Rationale:** {action['rationale']}")
+                st.divider()
+                
+        except Exception as parse_error:
+            st.error(f"Error reading the AI output: {str(parse_error)}")
+
 
 # ==========================================
 # TAB 2: REVERSE ENGINEER
