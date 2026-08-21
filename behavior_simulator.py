@@ -268,38 +268,39 @@ with tab1:
     
             with st.form("chat_form"):
                 query = st.text_input(
-                   "Explore this simulation deeper:",
-                   placeholder="e.g., How would their reaction change if the sensory noise doubled?"
+                    "Explore this simulation deeper:",
+                    placeholder="e.g., How would their reaction change if the sensory noise doubled?"
                 )
                 submit_q = st.form_submit_button("Ask Gemini")
         
                 if submit_q and query:
-                chat_prompt = f"""
-                You are continuing the analysis for the following psychological profile.
-                SITUATION: {st.session_state['last_situation']}
-                PREVIOUS AI PREDICTIONS: {st.session_state['last_sim']}
+                    chat_prompt = f"""
+                    You are continuing the analysis for the following psychological profile.
+                    SITUATION: {st.session_state['last_situation']}
+                    PREVIOUS AI PREDICTIONS: {st.session_state['last_sim']}
             
-                USER FOLLOW-UP QUESTION: {query}
+                    USER FOLLOW-UP QUESTION: {query}
             
-                Provide a direct, concise, and scientifically grounded response addressing this specific query. Do not use JSON formatting.
-                """
+                    Provide a direct, concise, and scientifically grounded response addressing this specific query. Do not use JSON formatting.
+                    """
             
-                try:
-                    chat_response = client.models.generate_content(
-                        model=primary_model,
-                        contents=chat_prompt
-                    )
-                    st.session_state['last_chat_response'] = chat_response.text
-                except Exception:
-                    chat_response = client.models.generate_content(
-                        model=backup_model,
-                        contents=chat_prompt
-                    )
-                    st.session_state['last_chat_response'] = chat_response.text
+                    try:
+                        chat_response = client.models.generate_content(
+                           model=primary_model,
+                           contents=chat_prompt
+                        )
+                        st.session_state['last_chat_response'] = chat_response.text
+                    except Exception:
+                        chat_response = client.models.generate_content(
+                           model=backup_model,
+                           contents=chat_prompt
+                        )
+                        st.session_state['last_chat_response'] = chat_response.text
 
             # Display the answer persistently outside the form so it doesn't vanish
             if 'last_chat_response' in st.session_state and st.session_state['last_chat_response']:
-                st.info(st.session_state['last_chat_response'])
+               st.info(st.session_state['last_chat_response'])
+
 
 
 # ==========================================
