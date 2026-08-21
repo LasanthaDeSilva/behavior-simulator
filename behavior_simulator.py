@@ -1,6 +1,3 @@
-import warnings
-warnings.filterwarnings("ignore")
-
 import json
 import math
 import uuid
@@ -14,7 +11,7 @@ from google.genai import types
 # PYDANTIC SCHEMAS (FORCES JSON OUTPUTS)
 # ==========================================
 
-# Schemas for Forward Predictor
+# --- Schemas for Forward Predictor ---
 class PredictedAction(BaseModel):
     action: str = Field(description="A highly specific, plausible action this hypothetical profile might take.")
     raw_weight: int = Field(ge=1, le=100, description="Relative plausibility score (1-100) of this outcome occurring based on heuristic model weights, not statistically calibrated probability.")
@@ -31,28 +28,37 @@ class CounterfactualResponse(BaseModel):
     comparison_summary: str = Field(description="Explanation of how and why this specific change alters the behavioral landscape compared to the baseline.")
     new_predictions: list[PredictedAction] = Field(min_length=3, max_length=3, description="Exactly 3 new plausible actions based on the modified scenario.")
 
-# Schemas for Reverse Engineer
+
+# --- Schemas for Competing Explanations (Tab 2) ---
 class HexacoScores(BaseModel):
-    Honesty_Humility: str = Field(description="Qualitative range (e.g., Low, Moderate, High) rather than an exact number to avoid false precision.")
-    Emotionality: str = Field(description="Qualitative range (e.g., Low, Moderate, High)")
-    Extraversion: str = Field(description="Qualitative range (e.g., Low, Moderate, High)")
-    Agreeableness: str = Field(description="Qualitative range (e.g., Low, Moderate, High)")
-    Conscientiousness: str = Field(description="Qualitative range (e.g., Low, Moderate, High)")
-    Openness: str = Field(description="Qualitative range (e.g., Low, Moderate, High)")
+    Honesty_Humility: str = Field(description="Qualitative range (e.g., Low, Moderate, High) or 'Insufficient information'.")
+    Emotionality: str = Field(description="Qualitative range (e.g., Low, Moderate, High) or 'Insufficient information'.")
+    Extraversion: str = Field(description="Qualitative range (e.g., Low, Moderate, High) or 'Insufficient information'.")
+    Agreeableness: str = Field(description="Qualitative range (e.g., Low, Moderate, High) or 'Insufficient information'.")
+    Conscientiousness: str = Field(description="Qualitative range (e.g., Low, Moderate, High) or 'Insufficient information'.")
+    Openness: str = Field(description="Qualitative range (e.g., Low, Moderate, High) or 'Insufficient information'.")
 
-class ProfileHypothesis(BaseModel):
-    relative_plausibility_score: int = Field(ge=1, le=100, description="Heuristic compatibility score (1-100). This is NOT a probability, NOT a confidence metric, and NOT a personality estimate.")
-    primary_mechanism: str = Field(description="Primary driver of the behavior (e.g., situational pressure, immediate incentive, learning history, stable trait tendency).")
+class EvidenceBreakdown(BaseModel):
+    directly_supported: str = Field(description="What we actually observed in the behavior.")
+    interpretation: str = Field(description="What could plausibly explain it.")
+    speculation: str = Field(description="What we are assuming because information is missing.")
+
+class CompetingExplanation(BaseModel):
+    explanation_name: str = Field(description="Short title (e.g., 'Incentive-Driven', 'Situational Pressure', 'Contextual Misunderstanding').")
+    compatibility: Literal["Strong", "Moderate", "Weak"] = Field(description="Compatibility with the observed behavior. No numerical scores.")
+    primary_mechanism: str = Field(description="Primary driver of the behavior.")
+    situational_factors: str = Field(description="What external factors could explain the behavior?")
+    temporary_state: str = Field(description="What temporary internal state might matter right now?")
+    possible_trait_contribution: str = Field(description="How traits might contribute, IF relevant. (May be 'None assumed').")
     hexaco: HexacoScores
-    sensory_responsiveness: str = Field(description="Hypothesized sensory responsiveness.")
-    reward_sensitivity: str = Field(description="Hypothesized reward sensitivity / novelty seeking.")
-    current_state: str = Field(description="Hypothesized temporary state (e.g., panicked, exhausted).")
-    justification: str = Field(description="Explanation of why this specific mix of traits/state leads plausibly to the observed action. MUST include 'Insufficient information' if highly ambiguous.")
+    evidence_breakdown: EvidenceBreakdown
 
-class ReverseEngineeringResult(BaseModel):
-    evidence_quality: str = Field(description="Assessment of the quality and specificity of the provided context and action.")
+class BehaviorAnalysisResult(BaseModel):
     behavioral_ambiguity: str = Field(description="How ambiguous the behavior is. Explicitly state that multiple different profiles can produce the same behavior.")
-    hypotheses: list[ProfileHypothesis] = Field(min_length=3, max_length=3, description="Exactly 3 distinct profile hypotheses that could plausibly explain the action.")
+    specific_uncertainty: str = Field(description="Why uncertain: specific factors we don't know (e.g., financial circumstances, perceived ownership, urgency) that prevent a definitive conclusion.")
+    cannot_be_inferred: list[str] = Field(description="Specific broad traits, capacities, or long-term characteristics that CANNOT be inferred from this single action.")
+    missing_information: list[str] = Field(description="Specific pieces of missing context (e.g., 'Prior experiences with lost property', 'Cultural norms', 'Time pressure').")
+    explanations: list[CompetingExplanation] = Field(min_length=3, max_length=3, description="Exactly 3 genuinely competing explanations.")
 
 
 # ==========================================
@@ -72,15 +78,15 @@ with st.sidebar:
     
     model_choice = st.selectbox(
         "Primary AI Engine",
-        ["Gemini 3.7 Flash", "Gemini 3.5 Flash"]
+        ["Gemini 2.5 Flash", "Gemini 2.0 Flash"]
     )
 
-    if "3.7" in model_choice:
-        primary_model = "gemini-3.7-flash"
-        backup_model = "gemini-3.5-flash"
+    if "2.5" in model_choice:
+        primary_model = "gemini-2.5-flash"
+        backup_model = "gemini-2.0-flash"
     else:
-        primary_model = "gemini-3.5-flash"
-        backup_model = "gemini-3.7-flash"
+        primary_model = "gemini-2.0-flash"
+        backup_model = "gemini-2.5-flash"
 
     api_key = st.secrets.get("GEMINI_API_KEY", "")
     
@@ -99,8 +105,14 @@ client = genai.Client(api_key=api_key)
 # HELPER FOR WEIGHT NORMALIZATION
 # ==========================================
 def calculate_normalized_percentages(predictions_list):
+    if not predictions_list: 
+        return [] 
+    
     raw_weights = [action['raw_weight'] for action in predictions_list]
-    total_weight = sum(raw_weights)
+    total_weight = sum(raw_weights) 
+    
+    if total_weight <= 0: 
+        return [round(100 / len(predictions_list))] * len(predictions_list)
     
     exact = [(w / total_weight) * 100 for w in raw_weights]
     percentages = [math.floor(x) for x in exact]
@@ -114,7 +126,7 @@ def calculate_normalized_percentages(predictions_list):
 
 
 # Create Tabs
-tab1, tab2 = st.tabs(["🔮 Forward Predictor", "🔍 Profile Hypotheses"])
+tab1, tab2 = st.tabs(["🔮 Forward Predictor", "🔍 Behavior → Competing Explanations"])
 
 # ==========================================
 # TAB 1: FORWARD PREDICTOR
@@ -326,6 +338,9 @@ with tab1:
             query = st.text_input("Test a scenario change:", placeholder="What if sensory load doubled?")
             submit_q = st.form_submit_button("Explore Counterfactual")
     
+            if submit_q:
+                st.session_state["last_chat_response"] = None 
+
             if submit_q and query:
                 if not st.session_state.get('last_config'):
                     st.error("⚠️ Please run a simulation first so there is a baseline configuration to modify.")
@@ -348,6 +363,8 @@ with tab1:
                     3. Generate 3 meaningfully different new predicted actions based on this modified state.
                     4. Provide a comparison summary explaining how the new outcomes differ from the baseline.
                     5. Output strictly matching the requested JSON schema.
+                    6. If the requested change is ambiguous or cannot be mapped to exactly one variable or context detail, do not guess. State that it is ambiguous and ask the user to specify one change. 
+                    7. If the user changes the environment or situation, modify only the relevant contextual variable. Never alter HEXACO, sensory responsiveness, reward sensitivity, or other stable individual parameters unless the user explicitly requests that parameter to change. 
                     """
             
                     def run_counterfactual_generation(model_name):
@@ -391,32 +408,31 @@ with tab1:
 
 
 # ==========================================
-# TAB 2: REVERSE ENGINEER (PROFILE HYPOTHESES)
+# TAB 2: BEHAVIOR -> COMPETING EXPLANATIONS
 # ==========================================
 with tab2:
-    st.subheader("Generate Plausible Profile Hypotheses")
-    st.info("💡 This tool explores possible psychological configurations that could be consistent with an observed behavior. It does not infer or recover the person's actual personality.")
-    st.warning("⚠️ **Important:** These hypotheses are not recovered personality profiles. The same observed behavior may be compatible with many different trait/state configurations.")
+    st.subheader("Generate 3 Competing Explanations for the Observed Behavior")
+    st.info("💡 This tool attempts to explain *why* a behavior occurred by prioritizing situational pressure, temporary states, and immediate incentives before considering stable personality traits.")
     
     rev_situation = st.text_area("Situation Context", "Finds a lost wallet containing $500 cash in a crowded subway station.")
     observed_action = st.text_area("Observed Action", "Grabbed the cash immediately, threw the wallet onto the tracks, and ran onto the train.")
     known_context = st.text_input("Known Context (Optional)", "Late for work")
     
-    if st.button("🔬 Analyze Plausible Profiles", type="primary"):
+    if st.button("🔬 Analyze Behavior", type="primary"):
         st.session_state["reverse_parsed_predictions"] = None
         
         prompt = f"""
-        You are an AI performing a behavioral simulation to address the "One-to-Many" behavioral problem.
+        You are an AI performing a behavioral analysis to address the "One-to-Many" behavioral problem.
+        
+        Your goal is to answer: "What distinct mechanisms and psychological configurations could each plausibly produce this behavior, while recognizing that the behavior may be explained without stable personality traits?"
         
         CRITICAL RULES:
-        1. Provide 3 distinct hypothetical profile configurations that are plausibly consistent with this exact action. 
-        2. The three hypotheses must differ primarily in their explanatory mechanism (e.g., one driven by immediate incentive, another by situational pressure, another by trait tendencies).
-        3. Use qualitative ranges (e.g., Low, Moderate, High) for HEXACO dimensions to avoid false precision.
-        4. Explicitly state that multiple different profiles can produce the exact same behavior. Do not claim you can identify a real personality from one action.
+        1. Provide exactly 3 genuinely competing explanations (e.g., Hypothesis A: incentive-driven, Hypothesis B: situational-pressure-driven, Hypothesis C: stable-trait-compatible).
+        2. A single behavior must never be treated as sufficient evidence for a broad personality trait. (e.g., Stealing once ≠ low Honesty-Humility as a person). It may be consistent with it, but it does not establish it.
+        3. Actively try to explain the behavior without personality first. Consider alternative explanations like misunderstanding, lack of information, social pressure, time pressure, fatigue, immediate incentives, learned habits, cultural norms, or deliberate strategy.
+        4. Use qualitative ranges (e.g., Low, Moderate, High) for HEXACO dimensions ONLY when the behavior provides clear evidence. If the observed behavior provides insufficient information about a dimension, explicitly output "Insufficient information" rather than inventing a range.
         5. Never infer autism, ADHD, anxiety disorders, personality disorders, trauma disorders, or any other clinical diagnosis from these parameters or behaviors.
-        6. Treat all outputs as hypothesized parameters, not actual detections or medical diagnoses.
-        7. If the behavior is highly ambiguous, you MUST allow for high uncertainty and output "Insufficient information to distinguish accurately" in your justifications.
-        8. Separate traits (stable), states (temporary), and context (external) conceptually.
+        6. Treat all outputs as hypothesized explanations, not factual deductions.
         
         SITUATION (Context): {rev_situation}
         OBSERVED ACTION: {observed_action}
@@ -429,13 +445,13 @@ with tab2:
                 contents=prompt,
                 config=types.GenerateContentConfig(
                     response_mime_type="application/json",
-                    response_schema=ReverseEngineeringResult,
+                    response_schema=BehaviorAnalysisResult,
                     temperature=0.6 
                 )
             )
-            return ReverseEngineeringResult.model_validate_json(response.text)
+            return BehaviorAnalysisResult.model_validate_json(response.text)
 
-        with st.spinner("Analyzing behavioral hypotheses..."):
+        with st.spinner("Generating competing explanations..."):
             try:
                 rev_result_obj = run_reverse_generation(primary_model)
                 st.session_state['reverse_parsed_predictions'] = rev_result_obj.model_dump()
@@ -449,41 +465,70 @@ with tab2:
                     st.stop()
 
     # ==========================================
-    # RENDER REVERSE PREDICTIONS PERSISTENTLY
+    # RENDER EXPLANATIONS PERSISTENTLY
     # ==========================================
     if st.session_state['reverse_parsed_predictions']:
         result = st.session_state['reverse_parsed_predictions']
         st.markdown("---")
         
-        col_ambig, col_ev = st.columns(2)
-        col_ambig.info(f"**🧩 Behavioral Ambiguity:** {result['behavioral_ambiguity']}")
-        col_ev.info(f"**🔬 Evidence Quality:** {result['evidence_quality']}")
+        # Top-level ambiguity and uncertainty
+        st.info(f"**🧩 Behavioral Ambiguity:** {result['behavioral_ambiguity']}")
+        st.warning(f"**⚠️ Specific Uncertainty:** {result['specific_uncertainty']}")
         
-        st.markdown("<br>", unsafe_allow_html=True)
+        # Epistemological Humility Block
+        col_missing, col_cannot = st.columns(2)
+        with col_missing:
+            st.markdown("#### ❓ Missing Information")
+            st.caption("We cannot draw definitive conclusions without knowing:")
+            for item in result.get('missing_information', []):
+                st.markdown(f"- {item}")
+        with col_cannot:
+            st.markdown("#### 🛑 What Cannot Be Inferred")
+            st.caption("This single behavior is insufficient evidence to determine:")
+            for item in result.get('cannot_be_inferred', []):
+                st.markdown(f"- {item}")
+                
+        st.markdown("---")
+        st.markdown("### 3 Competing Explanations")
         
-        hypotheses = result.get('hypotheses', [])
+        hypotheses = result.get('explanations', [])
         hypotheses = hypotheses[:3]
 
         cols = st.columns(min(len(hypotheses), 3)) if hypotheses else []
         for idx, (col, hyp) in enumerate(zip(cols, hypotheses)):
             with col:
-                st.markdown(f"### Profile Hypothesis {idx+1}")
-                st.progress(hyp['relative_plausibility_score'] / 100.0, text=f"Heuristic Compatibility: {hyp['relative_plausibility_score']}/100")
+                st.markdown(f"#### {idx+1}. {hyp['explanation_name']}")
                 
-                st.markdown(f"**⚙️ Primary Mechanism:** {hyp['primary_mechanism']}")
+                # Compatibility Badge
+                comp = hyp['compatibility']
+                color = "green" if comp == "Strong" else "orange" if comp == "Moderate" else "red"
+                st.markdown(f"**Compatibility:** :{color}[**{comp}**]")
                 
-                st.markdown("**🧠 Hypothesized State & Temperament**")
-                st.write(f"- **Sensory Responsiveness:** {hyp['sensory_responsiveness']}")
-                st.write(f"- **Reward Sens:** {hyp['reward_sensitivity']}")
-                st.write(f"- **State:** {hyp['current_state']}")
+                st.markdown(f"**⚙️ Mechanism:** {hyp['primary_mechanism']}")
                 
-                st.markdown("**📊 Illustrative HEXACO Configuration**")
-                h_data = hyp['hexaco']
-                st.caption(f"**H:** {h_data['Honesty_Humility']} | **E:** {h_data['Emotionality']} | **X:** {h_data['Extraversion']}")
-                st.caption(f"**A:** {h_data['Agreeableness']} | **C:** {h_data['Conscientiousness']} | **O:** {h_data['Openness']}")
+                st.markdown("**Context & State**")
+                st.write(f"- **Situation:** {hyp['situational_factors']}")
+                st.write(f"- **Temporary State:** {hyp['temporary_state']}")
+                st.write(f"- **Trait Contribution:** {hyp['possible_trait_contribution']}")
                 
-                with st.expander("Read Justification"):
-                    st.write(hyp['justification'])
+                # Expanders for detailed breakdown
+                with st.expander("📊 Evidence vs. Speculation Breakdown"):
+                    ed = hyp['evidence_breakdown']
+                    st.markdown("**✅ Directly Supported (Observed):**")
+                    st.write(ed['directly_supported'])
+                    st.markdown("**🔍 Interpretation (Plausible Link):**")
+                    st.write(ed['interpretation'])
+                    st.markdown("**💭 Speculation (Missing Data Assumed):**")
+                    st.write(ed['speculation'])
+                
+                with st.expander("🧬 Possible HEXACO Configuration (If Applicable)"):
+                    h_data = hyp['hexaco']
+                    st.markdown(f"**H:** {h_data['Honesty_Humility']}")
+                    st.markdown(f"**E:** {h_data['Emotionality']}")
+                    st.markdown(f"**X:** {h_data['Extraversion']}")
+                    st.markdown(f"**A:** {h_data['Agreeableness']}")
+                    st.markdown(f"**C:** {h_data['Conscientiousness']}")
+                    st.markdown(f"**O:** {h_data['Openness']}")
 
 # --- PERMANENT FOOTER ---
 st.markdown("<br><br>", unsafe_allow_html=True)
@@ -491,7 +536,7 @@ st.divider()
 st.markdown(
     """
     <div style='text-align: center; color: gray; font-size: 0.85em;'>
-        <p><b>AI-Assisted Behavioral Simulation</b> | Built with Streamlit & Google Gemini</p>
+        <p><b>Behavioral Scenario Lab</b> | Built with Streamlit & Google Gemini</p>
         <p>⚠️ <em>Disclaimer: This application is for educational, creative, and exploratory simulation purposes only. It generates plausible behavioral outcomes based on hypothetical trait and state parameters. It does not predict real-world actions, establish causal facts, or provide medical/psychological evaluations. Multiple distinct psychological profiles can produce identical behaviors. Numerical trait values shown by the simulator are illustrative configurations, not estimates of a person's actual traits.</em></p>
     </div>
     """,
