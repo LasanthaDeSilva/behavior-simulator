@@ -252,9 +252,51 @@ with tab1:
                     st.progress(action['probability_percentage'] / 100.0, text=f"{action['probability_percentage']}%")
                     st.write(f"**Rationale:** {action['rationale']}")
                     st.divider()
+             
+                # Save this run to memory for the follow-up chat
+                st.session_state['last_sim'] = response.text
+                st.session_state['last_situation'] = situation
+
                 
             except Exception as parse_error:
                 st.error(f"Error reading the AI output: {str(parse_error)}")
+
+        # === FOLLOW-UP CHAT FEATURE === 
+        if 'last_sim' in st.session_state:
+            st.markdown("---")
+            st.markdown("### 💬 Ask a Follow-up Question")
+    
+            with st.form("chat_form"):
+                query = st.text_input(
+                    "Explore this simulation deeper:",
+                    placeholder="e.g., How would their reaction change if the sensory noise doubled?"
+                )
+                submit_q = st.form_submit_button("Ask Gemini")
+        
+                if submit_q and query:
+                    with st.spinner("Analyzing follow-up scenario..."):
+                        chat_prompt = f"""
+                        You are continuing the analysis for the following psychological profile.
+                        SITUATION: {st.session_state['last_situation']}
+                        PREVIOUS AI PREDICTIONS: {st.session_state['last_sim']}
+                
+                        USER FOLLOW-UP QUESTION: {query}
+                
+                        Provide a direct, concise, and scientifically grounded response addressing this specific query. Do not use JSON formatting.
+                        """
+                
+                        try:
+                            chat_response = client.models.generate_content(
+                               model=primary_model,
+                               contents=chat_prompt
+                            )
+                            st.info(chat_response.text)
+                        except Exception:
+                            chat_response = client.models.generate_content(
+                                model=backup_model,
+                                contents=chat_prompt
+                            )
+                            st.info(chat_response.text)
 
 
 # ==========================================
