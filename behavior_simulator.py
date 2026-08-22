@@ -78,15 +78,27 @@ with st.sidebar:
     
     model_choice = st.selectbox(
         "Primary AI Engine",
-        ["Gemini 3.7 Flash", "Gemini 3.6 Flash"]
+        [
+            "Gemini 3.6 Flash (Fast & Capable - Default)", 
+            "Gemini 3.1 Pro (Heavy Reasoning)", 
+            "Gemini 3.5 Flash-Lite (Ultra Fast)"
+        ],
+        index=0,
+        help="Select the primary engine. If it hits a rate limit, the app automatically fails over to a backup model."
     )
 
-    if "3.7" in model_choice:
-        primary_model = "gemini-3.7-flash"
+    # Set the active model and backup engine based on selection
+    if "3.1 Pro" in model_choice:
+        primary_model = "gemini-3.1-pro"
         backup_model = "gemini-3.6-flash"
-    else:
+    elif "3.5 Flash-Lite" in model_choice:
+        primary_model = "gemini-3.5-flash-lite"
+        backup_model = "gemini-3.6-flash"
+    else: 
+        # Default: 3.6 Flash is selected
         primary_model = "gemini-3.6-flash"
-        backup_model = "gemini-3.7-flash"
+        backup_model = "gemini-3.5-flash-lite" # Safety net if 3.6 goes down
+
 
     api_key = st.secrets.get("GEMINI_API_KEY", "")
     
