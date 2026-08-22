@@ -341,7 +341,7 @@ def calculate_normalized_percentages(predictions_list):
 
 
 # Create Tabs
-tab1, tab2, tab3 = st.tabs(["🔮 Forward Predictor", "🔍 Competing Explanations", "📖 Science & Methodology"])
+tab1, tab2, tab3 = st.tabs(["Forward Predictor", "Competing Explanations", "Science & Methodology"])
 
 
 # ==========================================
@@ -401,7 +401,7 @@ with tab1:
     
     st.markdown("<br>", unsafe_allow_html=True)
 
-    if st.button("🚀 Run Behavioral Simulation", type="primary", use_container_width=True):
+    if st.button("Run Behavioral Simulation", type="primary", use_container_width=True):
         # Clear previous state
         st.session_state["parsed_predictions"] = None
         st.session_state["last_chat_response"] = None
@@ -499,9 +499,9 @@ with tab1:
         
         col_a, col_b = st.columns(2)
         with col_a:
-            st.info(f"**🔍 Modifier Relevance:**\n\n{result['modifier_relevance']}")
+            st.info(f"**Modifier Relevance:**\n\n{result['modifier_relevance']}")
         with col_b:
-            st.warning(f"**⚠️ Uncertainty Level:** {result['uncertainty_level']}\n\n{result['uncertainty_reason']}")
+            st.warning(f"**Uncertainty Level:** {result['uncertainty_level']}\n\n{result['uncertainty_reason']}")
     
         st.markdown("<br><div class='section-title'>Predicted Plausible Behaviors</div>", unsafe_allow_html=True)
         
@@ -535,7 +535,7 @@ with tab1:
 
             if submit_q and query:
                 if not st.session_state.get('last_config'):
-                    st.error("⚠️ Please run a baseline simulation first.")
+                    st.error("Please run a baseline simulation first.")
                 else:
                     config_str = json.dumps(st.session_state['last_config'], indent=2)
                     
@@ -580,7 +580,7 @@ with tab1:
                                 cf_obj = run_counterfactual_generation(backup_model)
                                 st.session_state['last_chat_response'] = cf_obj.model_dump()
                             except Exception as e2:
-                                st.error("⚠️ System failed to construct a valid counterfactual branch.")
+                                st.error("System failed to construct a valid counterfactual branch.")
 
         if st.session_state['last_chat_response']:
             cf_data = st.session_state['last_chat_response']
@@ -680,19 +680,19 @@ with tab2:
         st.markdown("<br><hr style='border-color: #1a1a1c;'><br>", unsafe_allow_html=True)
         
         # Top-level ambiguity and uncertainty
-        st.info(f"**🧩 Structural Ambiguity:** {result['behavioral_ambiguity']}")
-        st.warning(f"**⚠️ Specific Epistemic Gaps:** {result['specific_uncertainty']}")
+        st.info(f"**Structural Ambiguity:** {result['behavioral_ambiguity']}")
+        st.warning(f"**Specific Epistemic Gaps:** {result['specific_uncertainty']}")
         
         st.markdown("<br>", unsafe_allow_html=True)
         
         # Epistemological Humility Block
         col_missing, col_cannot = st.columns(2)
         with col_missing:
-            st.markdown("<div class='section-title' style='font-size: 1.1rem;'>❓ Missing Variables</div>", unsafe_allow_html=True)
+            st.markdown("<div class='section-title' style='font-size: 1.1rem;'>Missing Variables</div>", unsafe_allow_html=True)
             for item in result.get('missing_information', []):
                 st.markdown(f"<div style='color: #a1a1aa; margin-bottom: 8px;'>• {item}</div>", unsafe_allow_html=True)
         with col_cannot:
-            st.markdown("<div class='section-title' style='font-size: 1.1rem;'>🛑 Unverifiable Traits</div>", unsafe_allow_html=True)
+            st.markdown("<div class='section-title' style='font-size: 1.1rem;'>Unverifiable Traits</div>", unsafe_allow_html=True)
             for item in result.get('cannot_be_inferred', []):
                 st.markdown(f"<div style='color: #a1a1aa; margin-bottom: 8px;'>• {item}</div>", unsafe_allow_html=True)
                 
@@ -771,7 +771,7 @@ with tab3:
         
     st.markdown("<br>", unsafe_allow_html=True)
     
-    if st.button("🧠 Synthesize Knowledge Brief", type="primary"):
+    if st.button("Synthesize Knowledge Brief", type="primary"):
         target_concept = custom_concept if concept_choice == "Custom (Ask your own question)" else concept_choice
         
         if not target_concept:
