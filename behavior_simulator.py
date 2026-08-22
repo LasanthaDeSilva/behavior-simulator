@@ -828,7 +828,7 @@ st.markdown(
         <p style='margin-bottom: 8px; color: #71717a;'><b>Behavioral Scenario Lab</b> • Predictive Generative Architecture</p>
         <p style='max-width: 800px; margin: 0 auto; line-height: 1.5; margin-bottom: 16px;'><em>Strictly for exploratory, theoretical, and educational simulation. Predictions are synthetic generative estimates based on heuristic parameters and do not establish causal, clinical, or psychological facts regarding actual individuals. Behavioral equifinality guarantees that multiple distinct psychological architectures can output identical behaviors.</em></p>
         <p style='color: #4a4a52; font-size: 0.95em; font-weight: 500; letter-spacing: 0.02em;'>
-            Concept, Design & Engineering by Nikolai de Silva &nbsp;&nbsp;|&nbsp;&nbsp; &copy; 2026 <a href="https://ninolades.com" target="_blank" style="color: #4a4a52; text-decoration: none; border-bottom: 1px solid transparent; padding-bottom: 1px; transition: all 0.2s ease;" onmouseover="this.style.color='#4F83F5'; this.style.borderBottom='1px solid #4F83F5';" onmouseout="this.style.color='#4a4a52'; this.style.borderBottom='1px solid transparent';">ninolades.com</a>
+            Designed & Engineered by Nikolai de Silva &nbsp;&nbsp;•&nbsp;&nbsp; &copy; 2026 <a href="https://ninolades.com" target="_blank" style="color: #4a4a52; text-decoration: none; border-bottom: 1px solid transparent; padding-bottom: 1px; transition: all 0.2s ease;" onmouseover="this.style.color='#4F83F5'; this.style.borderBottom='1px solid #4F83F5';" onmouseout="this.style.color='#4a4a52'; this.style.borderBottom='1px solid transparent';">ninolades.com</a>
         </p>
     </div>
     """,
